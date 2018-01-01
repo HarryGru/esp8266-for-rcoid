@@ -3,11 +3,8 @@
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 
-#define IR_PORT 0                  //SONOFF 14
+#define IR_PORT 0               
 #define IR_PORT_INVERT false
-#define SWITCH_PORT 2    //Port, an dem ein Taster oder Schalter angeschlossen ist
-#define RELAIS_PORT 12   //Das Relai, welches mit dem Taster geschalten wird
-#define BUTTON_TIMEOUT 400   //Zeit in ms, wonach zwischen Taster und Schalter unterschieden wird.
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
@@ -16,9 +13,6 @@ const char* passwordAP = "passpass";  //Muss mindestens 8 Zeichen haben
 
 char ir[1024];
 String st;
-String htmlcontent;
-unsigned int switchTimer;
-bool switchState;
 ESP8266WebServer server(80);
 
 /*
@@ -78,7 +72,7 @@ void handleAPRoot()
       }
       htmlcontent += "</li>";
     }
-  st += "</ol>";
+  htmlcontent += "</ol>";
   }
   else
   {
@@ -326,8 +320,6 @@ void setup(void){
 
   pinMode(IR_PORT, OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
-  pinMode(SWITCH_PORT, INPUT);
-  switchState = digitalRead(SWITCH_PORT);
 
   EEPROM.begin(512);
   Serial.begin(115200);
@@ -481,29 +473,9 @@ void handleSetting()
 }
 
 /*
- * Reagiert auf eine Änderung des Switch-Port und schlatet das Relais (o.Ä.)
- * Änderungen innerhalb des Timeout werden ignoriert.
- * Dadurch können Taster uns Schalter behandelt werden.
- */
-void handleSwitch()
-{
-  bool currentState = digitalRead(SWITCH_PORT);
-  if (switchState != currentState)
-  {
-    switchState = currentState;
-    if (millis() > switchTimer+BUTTON_TIMEOUT)
-    {
-      switchTimer = millis();
-      digitalWrite(RELAIS_PORT, !digitalRead(RELAIS_PORT));   //Relais umschalten
-    }
-  }
-}
-
-/*
  * Hauptschleife
  */
 void loop() 
 {
   server.handleClient();
-  handleSwitch();
 }
