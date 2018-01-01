@@ -19,12 +19,7 @@ String st;
 String htmlcontent;
 unsigned int switchTimer;
 bool switchState;
-
-
 ESP8266WebServer server(80);
-
-
-
 
 /*
  * Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
