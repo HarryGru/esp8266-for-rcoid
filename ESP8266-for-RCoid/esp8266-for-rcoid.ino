@@ -12,7 +12,7 @@ const char* ssidAP = "ESP8266 for RCoid Access Point";
 const char* passwordAP = "passpass";  //Muss mindestens 8 Zeichen haben
 
 char ir[1024];
-String st;
+String htmlcontent;
 ESP8266WebServer server(80);
 
 /*
