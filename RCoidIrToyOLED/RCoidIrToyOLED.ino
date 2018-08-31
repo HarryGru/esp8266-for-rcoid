@@ -1,5 +1,5 @@
 /*
-  RCoidIrToyOLED
+  RCoidIrToyOLED mit Funk
 
   Board: "NodeMCU 1.0"
   Benötigte Bibiotheken:
@@ -19,15 +19,19 @@
 
 
 
+
+#define RF_PORT D9
 #define IR_PORT D8
 #define IR_PORT_INVERT false
 #define IR_RECEIVER_PORT D4
 #define STATUS_LED D0
+#define SPK_PORT D3
 
+#define PUSH_PORT D3
 #define UP_PORT D7
 #define ENTER_PORT D5
 #define DOWN_PORT D6
-#define PUSH_PORT D3
+
 boolean waitForRelease = true;
 
 // Netzwerkinformationen für Accesspoint
@@ -35,7 +39,8 @@ boolean waitForRelease = true;
 const char* ssidAP = "ESP8266 for RCoid Access Point";
 const char* passwordAP = "passpass";  //Muss mindestens 8 Zeichen haben
 
-char ir[1024] = {'0'};
+char puffer[1024] = {'0'};
+unsigned int tones[20] = {0, 0};
 String htmlcontent;
 ESP8266WebServer server(80);
 
@@ -48,9 +53,82 @@ SSD1306  display(0x3c, D1, D2);
 
 unsigned long timer;
 #define DISPLAY_TIMEOUT 20000
+#define RESET_TIMEOUT 300000  //Wenn sich im AP-Modus kein Client verbindet, wird nach dieser Zeit ein Reset ausgelöst. Sinnvoll, wenn nach Stromausfall der Router noch nicht neu gestartet hat.
 
 int fileCounter;
 
+
+/*
+   sendet ein RCoid-RF-Signal
+   z.B.:
+
+*/
+void handleRf()
+{
+  serial_print_HttpInfo();
+
+  int repeats = getArgValue("repeats");
+  if (repeats == -1)
+    repeats = 1;
+  int gap = getArgValue("gap");
+  if (gap == -1)
+    gap = 10000;
+
+  if (server.arg("code") != "")
+  {
+    digitalWrite(STATUS_LED, LOW);
+    display.clear();
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(0, 10, "RF-Signal");
+    display.drawString(30, 30, "was sended.");
+    display.setFont(ArialMT_Plain_10);
+    display.display();
+
+    timer = millis();
+
+    (server.arg("code") + ",0").toCharArray(puffer, 1024);
+    for (int i = 0; i <= repeats; i++)
+    {
+      sendRf(puffer);
+      if (i != repeats)
+      {
+        digitalWrite(STATUS_LED, HIGH);
+        delayMicroseconds(gap);
+        digitalWrite(STATUS_LED, LOW);
+      }
+      ESP.wdtFeed();
+    }
+  }
+  else
+  {
+    handleNotFound();
+    return;
+  }
+  htmlcontent = "OK";
+  server.send(200, "text/plain", htmlcontent);
+
+  digitalWrite(STATUS_LED, HIGH);
+}
+
+void sendRf(char* p_RCoidRfCode)
+{
+  char *p = 0; //Zeiger im Array
+
+  bool burst = true; //wir beginnen mit RF-Signal
+  unsigned int burstTime = strtol(p_RCoidRfCode, &p, 10);
+  while (burstTime != 0)
+  {
+    digitalWrite(RF_PORT, burst ? HIGH : LOW);
+
+
+    delayMicroseconds(burstTime);  //Warten
+
+    burst = !burst;
+    p++; //Komma im String wird übersprungen
+    burstTime = strtol(p, &p, 10);
+  }
+  digitalWrite(RF_PORT, LOW); //Am Ende IR immer AUS
+}
 
 /*
    Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
@@ -256,8 +334,8 @@ void handleIr()
     display.setFont(ArialMT_Plain_10);
     display.display();
     timer = millis();
-    (server.arg(0) + ",0").toCharArray(ir, 1024);
-    sendIr(ir);
+    (server.arg(0) + ",0").toCharArray(puffer, 1024);
+    sendIr(puffer);
   }
   else
   {
@@ -274,7 +352,7 @@ void handleIr()
 
 void sendIr(char* p_RCoidIrCode)
 {
-  char *p; //Zeiger im Array
+  char *p = 0; //Zeiger im Array
   unsigned int frequence = strtol(p_RCoidIrCode, &p, 10);
   if (frequence == 0)
     return;
@@ -302,6 +380,8 @@ void sendIr(char* p_RCoidIrCode)
   }
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
 }
+
+
 
 /**
    Schaltete einen beliebigen GPIO Pin.
@@ -429,7 +509,7 @@ void handleReceiveIr()
       server.send(200, "application/json", htmlcontent);
 
       saveJSON();
-
+      playTone();
       irReceiver.resume();  // Receive the next value
       digitalWrite(STATUS_LED, HIGH);
 
@@ -525,7 +605,7 @@ String getIrCode()
   {
     str += ",1";
   }
-  (str + ",0").toCharArray(ir, 1024);
+  (str + ",0").toCharArray(puffer, 1024);
   return str;
 }
 
@@ -534,11 +614,15 @@ String getIrCode()
 */
 void setup(void) {
 
+  //  tone(10,NOTE_C4,1000);
+  Serial.begin(115200);
+
   pinMode(UP_PORT, INPUT_PULLUP);
   pinMode(DOWN_PORT, INPUT_PULLUP);
   pinMode(ENTER_PORT, INPUT_PULLUP);
   pinMode(PUSH_PORT, INPUT_PULLUP);
   pinMode(IR_PORT, OUTPUT);
+  pinMode(RF_PORT, OUTPUT);
   pinMode(STATUS_LED, OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
   digitalWrite(STATUS_LED, HIGH);
@@ -551,8 +635,9 @@ void setup(void) {
 
   irReceiver.enableIRIn();  // Start the receiver
 
+
   EEPROM.begin(512);
-  Serial.begin(115200);
+
 
   delay(1);
   SPIFFS.begin();
@@ -636,6 +721,7 @@ void setup(void) {
       server.on("/receiveir", handleReceiveIr);
       server.on("/files", handleFiles);
       server.on("/formatspiffs", handleFormatSpiffs);
+      server.on("/rf", handleRf);
 
       server.onNotFound(handleNotFound);
 
@@ -686,7 +772,7 @@ void handleFiles()
   {
     Dir dir = SPIFFS.openDir("/");
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    
+
     htmlcontent = "<html><head></head><body style='font-family: sans-serif; font-size: 12px'><h1>ESP8266 Files</h1>";
     htmlcontent += "<p>";
 
@@ -801,10 +887,12 @@ void setupAP(void) {
   server.on("/ir", handleIr);
   server.on("/out", handleOut);
   server.on("/reset", handleReset);
+  server.on("/deletepass", handleDeletePass);
   server.on("/getip", handleGetIp);
   server.on("/receiveir", handleReceiveIr);
   server.on("/files", handleFiles);
   server.on("/formatspiffs", handleFormatSpiffs);
+  server.on("/rf", handleRf);
 
   server.onNotFound(handleNotFound);
 
@@ -867,24 +955,36 @@ void handleSetting()
 
 }
 
+
+
 /*
    Hauptschleife
 */
 void loop()
 {
+  if (WiFi.localIP().toString().equals("0.0.0.0") && WiFi.softAPgetStationNum() == 0)
+  {
+    if (millis() > timer + RESET_TIMEOUT)
+    {
+      handleReset();
+    }
+  }
+
   server.handleClient();
   if (irReceiver.decode(&ir_Decoded))
   {
     irDecodedIndexShow = fileCounter;
     saveJSON();
+    playTone();
     displayIRdecoded(ir_Decoded);
     irReceiver.resume();
   }
   handleSwitch();
+  handleTone();
   if (millis() > timer + DISPLAY_TIMEOUT)
   {
-    ir[0] = '0';
-    ir[1] = ',';
+    puffer[0] = '0';
+    puffer[1] = ',';
     if (pushJson)
     {
       pushJson = false;
@@ -962,14 +1062,14 @@ void handleSwitch()
   {
     digitalWrite(STATUS_LED, LOW);
     irReceiver.disableIRIn();
-    sendIr(ir);
+    sendIr(puffer);
     irReceiver.enableIRIn();
     digitalWrite(STATUS_LED, HIGH);
     waitForRelease = true;
     timer = millis();
     delay(50);
   }
-  if (!digitalRead(PUSH_PORT) && !waitForRelease)
+  if (!digitalRead(PUSH_PORT) && !waitForRelease && pinIsInput(PUSH_PORT))
   {
     digitalWrite(STATUS_LED, LOW);
     display.clear();
@@ -1062,7 +1162,7 @@ void displayJSON(int irDecodedIndexShow)
       else if (temp.equals("RCoid IR Code"))
       {
         file.readStringUntil('"');
-        (file.readStringUntil('"') + ",0").toCharArray(ir, 1024);
+        (file.readStringUntil('"') + ",0").toCharArray(puffer, 1024);
         break;
       }
     }
@@ -1074,6 +1174,132 @@ void displayJSON(int irDecodedIndexShow)
 
   display.display();
   timer = millis();
-
 }
+
+boolean pinIsInput(uint8_t pin)
+{
+  if (pin >= NUM_DIGITAL_PINS) return (false);
+
+  uint8_t bit = digitalPinToBitMask(pin);
+  uint8_t port = digitalPinToPort(pin);
+  volatile uint32_t *reg = portModeRegister(port);
+  if (*reg & bit)
+    return false;
+  return true;
+}
+
+void addTone(int f, int t)
+{
+  if (t == 0)
+    return;
+  int i = 0;
+  while (tones[i + 1] != 0 && i < 20)
+    i += 2;
+
+  if (i < 19)
+  {
+    tones[i] = f;
+    tones[i + 1] = t;
+    if (i == 0)
+    {
+      tone(SPK_PORT, f, t);
+      tones[i + 1] += millis();
+    }
+  }
+}
+void handleTone()
+{
+
+  if (tones[1] == 0)
+    return;
+  if (millis() > tones[1])
+  {
+    for (int i = 0; i < 18 ; i += 2)
+    {
+      tones[i] = tones[i + 2];
+      tones[i + 1] = tones[i + 3];
+    }
+    tones[18] = 0;
+    tones[19] = 0;
+
+    if (tones[1] > 0)
+    {
+      tone(SPK_PORT, tones[0], tones[1]);
+      tones[1] += millis();
+    }
+    else
+    {
+      pinMode(PUSH_PORT, INPUT_PULLUP);
+    }
+  }
+}
+void addToneRepeat()
+{
+  addTone(294, 125);
+  addTone(370, 125);
+  addTone(587, 250);
+}
+void addToneSuccess()
+{
+  addTone(294, 125);
+  addTone(370, 250);
+}
+void addToneUnknown()
+{
+  addTone(370, 125);
+  addTone(262, 250);
+}
+
+void playTone()
+{
+  String protocol = typeToString(ir_Decoded.decode_type, false);
+  if (protocol.equals("UNKNOWN"))
+    addToneUnknown();
+  else
+  {
+    File file = SPIFFS.open("/IR-Decoded" + String(irDecodedIndexShow - 1) + ".json", "r");
+    if (!file)
+    {
+      Serial.println("JSON file open failed");
+      display.drawString(0, 0, "JSON file open failed");
+    }
+    else
+    {
+      String temp;
+      while (file.available())
+      {
+        temp = file.readStringUntil('"');
+        if (temp.equals("Protocol"))
+        {
+          file.readStringUntil('"');
+          if (!file.readStringUntil('"').equals(protocol))
+          {
+            addToneSuccess();
+            file.close();
+            return;
+          }
+        }
+      }
+        else if (temp.equals("Value"))
+        {
+          file.readStringUntil('"');
+          if (!file.readStringUntil('"').equals(uint64ToString(ir_Decoded.value, HEX)))
+          {
+            addToneSuccess();
+            file.close();
+            return;
+          }
+        }
+
+        else if (temp.equals("RCoid IR Code"))
+        {
+          break;
+        }
+      }
+      file.close();
+      addToneRepeat();
+    }
+  }
+}
+
 
