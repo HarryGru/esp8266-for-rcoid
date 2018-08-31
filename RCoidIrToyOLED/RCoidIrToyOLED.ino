@@ -1,5 +1,5 @@
 /*
-  RCoidIrToyOLED mit Funk
+  RCoidIrToy mit OLED und Funkmodul
 
   Board: "NodeMCU 1.0"
   Benötigte Bibiotheken:
