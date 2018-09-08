@@ -66,7 +66,7 @@ int fileCounter;
 void handleRf()
 {
   serial_print_HttpInfo();
-
+  
   int repeats = getArgValue("repeats");
   if (repeats == -1)
     repeats = 1;
@@ -76,6 +76,7 @@ void handleRf()
 
   if (server.arg("code") != "")
   {
+    irReceiver.disableIRIn();
     digitalWrite(STATUS_LED, LOW);
     display.clear();
     display.setFont(ArialMT_Plain_16);
@@ -98,6 +99,7 @@ void handleRf()
       }
       ESP.wdtFeed();
     }
+    irReceiver.enableIRIn();
   }
   else
   {
