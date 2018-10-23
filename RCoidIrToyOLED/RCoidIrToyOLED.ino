@@ -1,5 +1,6 @@
 /*
   RCoidIrToy mit OLED und Funkmodul
+  V2.0.1 23.10.2018
 
   Board: "NodeMCU 1.0"
   Benötigte Bibiotheken:
@@ -17,7 +18,9 @@
 #include <SSD1306.h>
 #include "FS.h"
 
-
+#ifndef OFFSET_START
+  #define OFFSET_START   kStartOffset   // Usual rawbuf entry to start processing from.
+#endif
 
 
 #define RF_PORT D9
