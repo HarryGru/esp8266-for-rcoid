@@ -1,6 +1,6 @@
 /*
   RCoidIrToy mit OLED und Funkmodul
-  V2.0.1 23.10.2018
+  V2.0.2 12.03.2019
 
   Board: "NodeMCU 1.0"
   Benötigte Bibiotheken:
@@ -464,15 +464,20 @@ void handleReset()
 void handleGetIp()
 {
   IPAddress ip = WiFi.localIP();
-  htmlcontent = ip.toString();;
+  String sIP = ip.toString();
+  if (sIP.equals("(IP unset)"))
+  {
+    sIP = "0.0.0.0";
+  }
+  htmlcontent = sIP;
   server.send(200, "text/plain", htmlcontent);
   Serial.println("Get IP = " + htmlcontent);
-  if (!ip.toString().equals("0.0.0.0"))
+  if (!sIP.equals("0.0.0.0"))
   {
     display.clear();
     display.setFont(ArialMT_Plain_16);
     display.drawString(0, 10, "Local IP");
-    display.drawString(0, 30, ip.toString());
+    display.drawString(0, 30, sIP);
     display.setFont(ArialMT_Plain_10);
     display.display();
     timer = millis();
