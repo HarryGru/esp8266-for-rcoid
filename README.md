@@ -19,7 +19,7 @@
   <a href="https://www.rcoid.de/RCoidIrToyOLED.html">full description here</a> <a href="https://www.rcoid.de/RCoidIrToyFunk.html">and here</a>
 </p>
 
-<h4><a href="https://github.com/HarryGru/esp8266-for-rcoid/tree/master/RCoidIrToy">RCoid IrToy Auvisio</a></h4>
+<h4><a href="https://github.com/HarryGru/esp8266-for-rcoid/tree/master/RCoidIrToy_Auvisio">RCoid IrToy Auvisio</a></h4>
 <p>
   This is the simple RCoid IRToy Sketch modified to work with the auvisio WI-FI Infrared Remote Control.<br>
 </p>
