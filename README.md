@@ -21,7 +21,5 @@
 
 <h4><a href="https://github.com/HarryGru/esp8266-for-rcoid/tree/master/RCoidIrToy">RCoid IrToy Auvisio</a></h4>
 <p>
-  Arduino Sketch to send and receive IR-Signals with the ESP8266 based on the library "IRremote8266"<br>
-  <img src="https://www.rcoid.de/images/rcoid/rcoidirtoy2.png" width="200" title="RCoid IRToy">
-  <a href="https://www.rcoid.de/RCoidIrToy.html">full description here</a>
+  This is the simple RCoid IRToy Sketch modified to work with the auvisio WI-FI Infrared Remote Control.<br>
 </p>
