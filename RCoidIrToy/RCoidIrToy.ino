@@ -11,6 +11,10 @@
 #define IR_PORT_INVERT false
 #define IR_RECEIVER_PORT 2
 
+#ifndef OFFSET_START
+  #define OFFSET_START   kStartOffset   // Usual rawbuf entry to start processing from.
+#endif
+
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
