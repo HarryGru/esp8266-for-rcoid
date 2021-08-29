@@ -1,9 +1,9 @@
 /*
   RCoidIrToy für auvisio wifi ir box
-  V1.0.0 26.01.2020
+  V1.0.1 29.08.2021
   
   Board: "LOLIN(WEMOS)D1 mini Lite"  //Das ist das einzige Board, bei dem der EEPROM funktioniert
-  Uploadspeed: 115200
+  Uploadspeed: 512000
   CPU Freq: 80MHz
   
   Benötigte Bibiotheken:
@@ -121,7 +121,9 @@ void handleAPRoot()
   htmlcontent += "<p>";
   htmlcontent += "<a href='/receiveir'>Receive Infrared Signal</a>";
   htmlcontent += "</p>";
-
+  htmlcontent += "<p>";
+  htmlcontent += "<a href='/deletepass'>WLAN Zugangsdaten l&ouml;schen</a>";
+  htmlcontent += "</p>";
   htmlcontent += "</body></html>";
   server.send(200, "text/html", htmlcontent);
 }
@@ -132,14 +134,14 @@ void handleAPRoot()
 void handleDeletePass()
 {
   htmlcontent = "<!DOCTYPE HTML>\r\n<html>";
-  htmlcontent += "<p>Clearing the EEPROM</p></html>";
+  htmlcontent += "<p>Clearing the EEPROM<br>and restart the ESP.</p></html>";
   server.send(200, "text/html", htmlcontent);
   Serial.println("clearing eeprom");
   EEPROM.write(0, 0);
   EEPROM.write(1, 0);
 
   EEPROM.commit();
-
+  delay(3000);
   ESP.restart();
 }
 
@@ -335,6 +337,7 @@ void handleOut()
 void handleReset()
 {
   Serial.println("ESP wird neu gestartet!");
+  delay(200);
   ESP.restart();
 }
 
@@ -524,7 +527,7 @@ void setupAP(void)
 {
   WiFi.mode(WIFI_AP_STA);
   digitalWrite(STATUS_LED, HIGH);
-  serial_print_Networks();
+  //serial_print_Networks();
 
   timer = millis();
 
@@ -541,6 +544,7 @@ void setupAP(void)
   server.on("/reset", handleReset);
   server.on("/getip", handleGetIp);
   server.on("/receiveir", handleReceiveIr);
+  server.on("/deletepass", handleDeletePass);
 
   server.onNotFound(handleNotFound);
 
@@ -607,6 +611,10 @@ void loop()
     {
       handleReset();
     }
+  }
+  else
+  {
+    timer = millis();
   }
       
   server.handleClient();
